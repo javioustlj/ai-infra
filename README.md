@@ -31,13 +31,12 @@ hugo mod tidy
 
 ## GitHub Pages
 
-仓库包含 `.github/workflows/github-pages.yml`。推送到 `main` 分支后，GitHub Actions 会构建 Hugo 站点，并把 `public/` 发布到 `gh-pages` 分支。
+仓库包含 `.github/workflows/pages.yaml`。推送到 `main` 分支后，GitHub Actions 会构建 Hugo 站点，上传 GitHub Pages artifact，并由 Pages 部署这个 artifact。
 
 首次使用时，在 GitHub 仓库里打开：
 
 ```text
-Settings -> Pages -> Build and deployment -> Source -> Deploy from a branch
-Branch -> gh-pages / root
+Settings -> Pages -> Build and deployment -> Source -> GitHub Actions
 ```
 
 站点地址：
