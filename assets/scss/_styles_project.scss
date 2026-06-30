@@ -1,0 +1,57 @@
+/*
+Project-specific styles. For details, see:
+https://www.docsy.dev/docs/content/lookandfeel/#project-style-files
+*/
+
+// Dark mode enhancements
+@import 'td/color-adjustments-dark';
+@import 'td/code-dark';
+@import 'td/gcs-search-dark';
+@import 'td/extra/buttons';
+@import 'td/extra/main-container';
+
+// Example of color tuning
+
+.td-box--primary {
+  // TODO: rework the td-box--* classes so that they don't override `color`;
+  // otherwise we can't use Bootstrap's CSS variables:
+  // --bs-link-color: $color !important;
+  // --bs-link-color-rgb: red !important;
+  a {
+    color: tint-color($primary, 80%) !important;
+  }
+}
+
+.td-cover-block {
+  background-position: center;
+}
+
+.td-cover-block.td-overlay--dark::after {
+  background-color: rgba(8, 13, 20, 0.46);
+}
+
+.td-cover-block .display-6 {
+  max-width: 58rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 575.98px) {
+  .td-cover-block h1.display-1 {
+    font-size: 3rem;
+    line-height: 1.12;
+  }
+
+  .td-cover-block .display-6 {
+    font-size: 1.65rem;
+  }
+}
+
+.td-navbar .navbar-brand__name {
+  font-weight: 700;
+}
+
+.td-navbar .navbar-brand__logo svg,
+.td-navbar .navbar-logo svg {
+  width: 32px;
+  height: 32px;
+}

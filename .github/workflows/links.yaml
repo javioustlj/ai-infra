@@ -1,0 +1,39 @@
+name: Check links
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.161.1'
+          extended: true
+
+      - name: Install lychee
+        env:
+          LYCHEE_VERSION: v0.24.2
+        run: |
+          tmp="$(mktemp -d)"
+          curl -sfL "https://github.com/lycheeverse/lychee/releases/download/lychee-${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz -C "$tmp"
+          install -D "$(find "$tmp" -type f -name lychee | head -n1)" "$HOME/.local/bin/lychee"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        run: hugo --gc --minify
+
+      - name: Check internal links
+        run: lychee --offline public

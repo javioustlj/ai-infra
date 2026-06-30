@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AI Infra">
+  <defs>
+    <linearGradient id="chip" x1="10" x2="54" y1="10" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="0.55" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="#0f172a"/>
+  <path fill="#94a3b8" d="M18 6h4v8h-4zm12 0h4v8h-4zm12 0h4v8h-4zM18 50h4v8h-4zm12 0h4v8h-4zm12 0h4v8h-4zM6 18h8v4H6zm0 12h8v4H6zm0 12h8v4H6zm44-24h8v4h-8zm0 12h8v4h-8zm0 12h8v4h-8z"/>
+  <rect x="16" y="16" width="32" height="32" rx="6" fill="url(#chip)"/>
+  <path fill="none" stroke="#e0f2fe" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.2" d="M24 40l5.5-16h5L40 40M27 34h10"/>
+  <circle cx="22" cy="22" r="2.5" fill="#cffafe"/>
+  <circle cx="42" cy="42" r="2.5" fill="#cffafe"/>
+</svg>

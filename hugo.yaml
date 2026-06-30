@@ -1,0 +1,135 @@
+baseURL: https://javioustlj.github.io/ai-infra/
+title: AI Infra 技术文档
+
+# Main content for this site. The original docsy-example content is kept in
+# other content directories as a reference, but is not part of the build.
+contentDir: content/zh-cn
+defaultContentLanguage: zh-cn
+defaultContentLanguageInSubdir: false
+enableMissingTranslationPlaceholders: false
+
+enableRobotsTXT: true
+enableGitInfo: false
+
+taxonomies:
+  tag: tags
+  category: categories
+
+pygmentsCodeFences: true
+pygmentsUseClasses: false
+pygmentsUseClassic: false
+pygmentsStyle: tango
+
+mediaTypes:
+  text/redirects:
+    delimiter: ''
+
+outputFormats:
+  redirects:
+    baseName: _redirects
+    isPlainText: true
+    mediaType: text/redirects
+    root: true
+
+permalinks:
+  blog: /:section/:year/:month/:day/:slugorcontentbasename
+
+imaging:
+  resampleFilter: CatmullRom
+
+languages:
+  zh-cn:
+    locale: zh-CN
+    label: 简体中文
+    title: AI Infra 技术文档
+    params:
+      description: 面向 AI 基础设施工程的技术文档和实践笔记
+      time_format_default: 2006-01-02
+      time_format_blog: 2006-01-02
+
+markup:
+  goldmark:
+    parser:
+      attribute:
+        block: true
+    renderer:
+      unsafe: true
+  highlight:
+    style: tango
+    noClasses: false
+
+outputs:
+  home: [HTML, print, RSS, redirects]
+  section: [HTML, print, RSS]
+
+params:
+  taxonomy:
+    taxonomyCloud: [tags, categories]
+    taxonomyCloudTitle: [标签, 分类]
+    taxonomyPageHeader: [tags, categories]
+
+  privacy_policy: ''
+  version_menu: 版本
+  archived_version: false
+  version: 0.1.0
+
+  github_repo: https://github.com/javioustlj/ai-infra
+  github_project_repo: https://github.com/javioustlj/ai-infra
+  github_branch: main
+
+  offlineSearch: true
+  prism_syntax_highlighting: false
+
+  copyright:
+    authors: AI Infra 技术文档 contributors
+    from_year: 2026
+    to_year: present
+
+  ui:
+    breadcrumb_disable: false
+    navbar_logo: true
+    navbar_translucent_over_cover_disable: false
+    sidebar_menu_foldable: true
+    sidebar_menu_compact: false
+    sidebar_search_disable: false
+    showLightDarkModeMenu: true
+    feedback:
+      enable: false
+    readingtime:
+      enable: true
+
+  btn-lg: class="btn btn-lg btn-{1}" role="button"
+  FA: <i class="fa-{1} fa-{2} text-{3} px-1"></i>
+
+  links:
+    user:
+      - name: 文档首页
+        url: /docs/
+        icon: fa-solid fa-book
+        desc: 从 AI Infra 的核心地图开始。
+      - name: 学习路径
+        url: /docs/getting-started/
+        icon: fa-solid fa-route
+        desc: 按主题逐步建立基础设施能力。
+    developer:
+      - name: GitHub
+        url: https://github.com/javioustlj/ai-infra
+        icon: fab fa-github
+        desc: 文档源码和站点部署配置。
+      - name: 站点信息
+        url: /site/
+        icon: fa-solid fa-circle-info
+        desc: Hugo 与 Docsy 构建信息。
+
+security:
+  funcs:
+    getenv:
+      - ^(CI|GITHUB_.*|HUGO_.*|BRANCH|BUILD_ID|COMMIT_REF|CONTEXT|DEPLOY_ID|NETLIFY|PULL_REQUEST|REVIEW_ID)$
+
+module:
+  hugoVersion:
+    extended: true
+    min: 0.158.0
+  imports:
+    - path: github.com/google/docsy/theme
+      disable: false

@@ -1,0 +1,11 @@
+version: '0.2'
+caseSensitive: true
+words:
+  - chalin
+  - docset
+  - docsy
+  - errorf
+  - github
+  - gohugoio
+  - Goldydocs
+  - pageinfo
