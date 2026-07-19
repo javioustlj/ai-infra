@@ -1,0 +1,33 @@
+# GitLab Pages 部署 —— Hugo + Docsy 静态站点。
+#
+# 说明：
+# - 此 CI 只在 GitLab 上运行；GitHub Pages 仍由 .github/workflows/pages.yaml
+#   独立负责，两边互不影响。
+# - baseURL 在构建时用 GitLab 预定义变量 $CI_PAGES_URL 覆盖，不改 hugo.yaml，
+#   因此 GitHub 侧的 baseURL 配置保持原样。
+# - Pages 站点：https://ai-infra-71fad6.pages.birentech.com（unique domain，根路径服务）。
+
+image: floryn90/hugo:ext-alpine
+
+variables:
+  HUGO_ENVIRONMENT: production
+  HUGO_ENV: production
+  # 内网 runner 拉取 Hugo 模块 (github.com/google/docsy/theme) 的兜底代理。
+  GOPROXY: https://goproxy.cn,https://proxy.golang.org,direct
+
+before_script:
+  - apk add --no-cache go git
+  - git config --global --add safe.directory '*'
+  - hugo version
+  - go version
+
+pages:
+  stage: deploy
+  script:
+    - hugo --gc --minify --baseURL "${CI_PAGES_URL}/"
+  artifacts:
+    paths:
+      - public
+  rules:
+    # 只在默认分支 (main) 部署，与 GitHub Pages 的触发分支保持一致。
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
