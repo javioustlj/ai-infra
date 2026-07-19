@@ -18,8 +18,12 @@ image:
 variables:
   HUGO_ENVIRONMENT: production
   HUGO_ENV: production
-  # 内网 runner 拉 Hugo 模块时的兜底代理。
-  GOPROXY: https://goproxy.cn,https://proxy.golang.org,direct
+  # 内网对出站 HTTPS 做自签证书 MITM，git/go 默认校验会失败。
+  # 跳过 TLS 校验并走 direct 模式直接从 github 拉取 Hugo Module。
+  GOPROXY: direct
+  GOINSECURE: "*"
+  GONOSUMDB: "*"
+  GIT_SSL_NO_VERIFY: "1"
 
 pages:
   stage: deploy
@@ -27,6 +31,8 @@ pages:
     # 实例的 Pages 构建专用 runner 注册了 common-pages 标签，必须指定才会被调度。
     - common-pages
   script:
+    - git config --global http.sslVerify "false"
+    - git config --global --add safe.directory '*'
     - hugo version
     - hugo --gc --minify --baseURL "${CI_PAGES_URL}/"
   artifacts:
