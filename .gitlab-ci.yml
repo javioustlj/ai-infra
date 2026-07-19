@@ -7,12 +7,12 @@
 #   因此 GitHub 侧的 baseURL 配置保持原样。
 # - Pages 站点：https://ai-infra-71fad6.pages.birentech.com（unique domain，根路径服务）。
 #
-# 为什么不用 hugomods/hugo:exts：该镜像 exts 标签最高只到 0.154.5，而本站
-# (Docsy 主题) 要求 Hugo >= 0.158.0 extended。故用 golang 镜像 + 从 github
-# 下载对应版本 hugo extended 二进制来构建。golang 镜像默认 root，apk 不会
-# 像 floryn90/hugo 那样 Permission denied。
+# 镜像选择：用 golang:1.23-bookworm（debian/glibc）。
+# 不用 alpine：hugo_extended 官方 linux-amd64 二进制按 glibc 编译，在 musl(alpine)
+# 上执行会报 "not found"（ld-linux 动态链接器缺失）。
+# 不用 hugomods/hugo:exts：其 exts 标签最高 0.154.5，不满足 Docsy 要求的 Hugo>=0.158。
 
-image: golang:1.23-alpine
+image: golang:1.23-bookworm
 
 variables:
   HUGO_ENVIRONMENT: production
@@ -31,20 +31,15 @@ pages:
     # 实例的 Pages 构建专用 runner 注册了 common-pages 标签，必须指定才会被调度。
     - common-pages
   script:
-    - apk add --no-cache git
     - git config --global http.sslVerify "false"
     - git config --global --add safe.directory '*'
     # 下载并安装 Hugo extended（与本地/GitHub Actions 侧一致的版本）。
-    # 内网对 github 做 MITM 自签证书，wget 也需 --no-check-certificate。
+    # 内网对 github 做 MITM 自签证书，wget 需 --no-check-certificate。
     - |
-      set -x
       wget --no-check-certificate -O /tmp/hugo.tar.gz "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"
-      ls -la /tmp/hugo.tar.gz
-      tar -tzf /tmp/hugo.tar.gz | head -20
       tar -xzf /tmp/hugo.tar.gz -C /usr/local/bin hugo
-      ls -la /usr/local/bin/
-      /usr/local/bin/hugo version
-    - /usr/local/bin/hugo --gc --minify --baseURL "${CI_PAGES_URL}/"
+      hugo version
+    - hugo --gc --minify --baseURL "${CI_PAGES_URL}/"
   artifacts:
     paths:
       - public
