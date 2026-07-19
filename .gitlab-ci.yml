@@ -23,6 +23,9 @@ before_script:
 
 pages:
   stage: deploy
+  tags:
+    # 实例的 Pages 构建专用 runner 注册了 common-pages 标签，必须指定才会被调度。
+    - common-pages
   script:
     - hugo --gc --minify --baseURL "${CI_PAGES_URL}/"
   artifacts:
