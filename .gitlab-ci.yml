@@ -11,7 +11,7 @@
 # Docsy 用 Hugo Module 拉取 github.com/google/docsy/theme 需要 Go，此镜像已含，
 # 无需再 apk 安装（common-pages runner 为非 root，apk 安装会 Permission denied）。
 image:
-  name: hugomods/hugo:exts
+  name: hugomods/hugo:exts-0.161.1
   # 清空 entrypoint，避免镜像默认入口吞掉 GitLab 的 `sh -c`。
   entrypoint: [""]
 
