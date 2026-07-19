@@ -7,7 +7,11 @@
 #   因此 GitHub 侧的 baseURL 配置保持原样。
 # - Pages 站点：https://ai-infra-71fad6.pages.birentech.com（unique domain，根路径服务）。
 
-image: floryn90/hugo:ext-alpine
+image:
+  name: floryn90/hugo:ext-alpine
+  # 该镜像 ENTRYPOINT 是 hugo，会吞掉 GitLab 的 `sh -c`，导致
+  # "unknown command sh for hugo"。清空 entrypoint 让脚本走 shell。
+  entrypoint: [""]
 
 variables:
   HUGO_ENVIRONMENT: production
