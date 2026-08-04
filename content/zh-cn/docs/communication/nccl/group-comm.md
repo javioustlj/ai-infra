@@ -22,7 +22,60 @@ ncclGroupEnd();              // 这里才一次性发射上面三笔操作
 
 分两步走（先记账、后提交）的好处是：一个 group 里多个操作可以统一调度——相邻任务能合并成一个 kernel、多个 comm 的 kernel 能跨 rank 对齐时机、出错时能整体回滚。这也是为什么把多个集合操作包在 `ncclGroupStart/End` 里会比逐个调用更快。
 
-即使你不显式写 `ncclGroupStart/End`，NCCL 也会把每一次 API 调用悄悄包在一对内部的 group 里：进来 `GroupStart`、记账、`GroupEnd` 触发射。所以单次 `ncclAllReduce` 看起来像个同步调用，底层其实也完整走了 group 的提交流程，只是这个 group 里只有一个任务。
+### 即使不写 GroupStart/End，每次 API 仍隐式包了一层 group
+
+这里有个容易忽略的细节：哪怕你只调一次 `ncclAllReduce`、根本没碰 `ncclGroupStart/End`，这次调用也**完整走了 group 的提交流程**。区别只在于——这层 group 是 NCCL 偷偷替你开的。
+
+机制藏在所有 API 的公共入口 `ncclEnqueueCheck` 里（`src/enqueue.cc:3016`）。每一个 `ncclAllReduce`/`ncclSend`/… 最后都会调到它，而它进函数第一件事就是开 group、出函数前关 group：
+
+```cpp
+ncclResult_t ncclEnqueueCheck(struct ncclInfo* info) {
+  // ① 开 group：把嵌套深度 +1
+  NCCLCHECK(ncclGroupStartInternal());          // enqueue.cc:3029
+
+  // ② 通信器就绪检查、参数校验
+  NCCLCHECKGOTO(ncclCommEnsureReady(info->comm), ret, fail);   // :3033
+  NCCLCHECKGOTO(ArgsCheck(info), ret, fail);                   // :3041
+
+  // ③ 记账：把这次操作挂进 comm 的 planner 队列（不发射）
+  NCCLCHECKGOTO(taskAppend(info->comm, info), ret, fail);      // :3048
+
+exit:
+  ncclGroupErrCheck(ret);
+  // ④ 关 group：把深度 -1，归零时才真正触发发射
+  NCCLCHECK(ncclGroupEndInternal());            // enqueue.cc:3053
+  return ret;
+fail:
+  goto exit;
+}
+```
+
+而 `ncclGroupStartInternal` / `ncclGroupEndInternal` 本身非常薄（`src/include/group.h:90`）：
+
+```cpp
+inline ncclResult_t ncclGroupStartInternal() {
+  ncclGroupDepth++;        // 只是深度 +1
+  return ncclSuccess;
+}
+```
+
+关键是 `ncclGroupEndInternal`（`src/group.cc:753`）里这一句——**只有当深度减到 0 时才真正干活**：
+
+```cpp
+ncclResult_t ncclGroupEndInternal(ncclSimInfo_t* simInfo) {
+  ...
+  if ((--ncclGroupDepth) > 0) goto exit;   // 深度没归零，直接返回什么都不做
+  ...
+  // 深度归零了：才走 doLaunches，把攒着的任务一次性发射
+}
+```
+
+这就是隐式 group 和显式 group 能共存、且互不干扰的关键。`ncclGroupDepth` 是个**嵌套计数器**：
+
+- **单次 API 调用（你不写 GroupStart/End）**：进 `ncclEnqueueCheck` 时深度从 0→1，出时从 1→0 归零，立即触发发射。所以这次调用看起来是"同步"的——调完任务就被发射了，但底层其实走完了一整个 group 流程，只是这个 group 里只有一个任务。
+- **显式 `ncclGroupStart()` 包住多个 API**：你手动 `Start` 把深度从 0→1；这之后每调一个 API，`ncclEnqueueCheck` 内部的 Start/End 把深度在 1↔2 之间来回拨，**始终没归零**，所以每个 API 结束都不触发发射，只记账；直到你手动 `ncclGroupEnd()` 把深度从 1→0，才一次性发射这一整批。
+
+换句话说，`ncclEnqueueCheck` 里的隐式 Start/End 对显式 group 是**透明**的：它只是把深度加一又减一，净效果为零，真正的提交时机仍然由你最外层的显式 `GroupEnd` 控制。这样设计的好处是——无论用户关不关 group，API 内部的代码路径是同一条，不用为"单次调用"和"批量调用"维护两套逻辑。
 
 ## 关键一步：group 是绑定在线程上的
 
