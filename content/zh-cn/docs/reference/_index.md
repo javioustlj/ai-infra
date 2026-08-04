@@ -1,7 +1,7 @@
 ---
 title: 参考资料
 description: 术语、检查清单和常用命令。
-weight: 6
+weight: 7
 ---
 
 这里用于放置可以反复查阅的短文档。
