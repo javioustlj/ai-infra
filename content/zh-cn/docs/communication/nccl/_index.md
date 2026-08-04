@@ -33,14 +33,15 @@ nccl/
 
 1. [架构设计](architecture)：先建立 NCCL 的整体分层心智模型——一次 `ncclAllReduce` 如何从 host API 流到 GPU kernel。
 2. [源码分析：AllReduce 调用链](allreduce-flow)：按真实执行路径逐函数追踪，是后续所有子系统分析的入口。
-3. [Communicator 与 Group](communicator)：理解 communicator、rank、channel 和 group 语义。
-4. [Topology 与图搜索](topology-graph)：NCCL 如何把硬件拓扑变成 ring/tree channel。
-5. [Transport 与建连](transport)：P2P/SHM/Net/NVLS/CollNet 如何选择与连接。
-6. [Proxy 线程](proxy)：CPU proxy 为什么存在、做什么。
-7. [Device Kernel](kernel)：GPU 侧 collective kernel 的执行模型。
-8. [插件 ABI](plugin-ab)：如何接入第三方 RDMA/SHARP 网络。
-9. [高级特性](features)：GDR / GIN / NVLS / RMA / CE / symmetric memory。
-10. [源码阅读路线](reading-guide)：给想自己读源码的人一条三遍阅读法。
+3. [Communicator 结构与字段地图](communicator)：理解 communicator、rank、channel 的字段布局与 device 侧镜像。
+4. [Group 提交模型与 Communicator 线程模型](group-comm)：⚠️ 必读。group 批量提交、per-comm planner、join/leave 哨兵语义、非阻塞串行约束，以及最关键的硬约束——一个 communicator 任意时刻只能被一个线程驱动。
+5. [Topology 与图搜索](topology-graph)：NCCL 如何把硬件拓扑变成 ring/tree channel。
+6. [Transport 与建连](transport)：P2P/SHM/Net/NVLS/CollNet 如何选择与连接。
+7. [Proxy 线程](proxy)：CPU proxy 为什么存在、做什么。
+8. [Device Kernel](kernel)：GPU 侧 collective kernel 的执行模型。
+9. [插件 ABI](plugin-abi)：如何接入第三方 RDMA/SHARP 网络。
+10. [高级特性](features)：GDR / GIN / NVLS / RMA / CE / symmetric memory。
+11. [源码阅读路线](reading-guide)：给想自己读源码的人一条三遍阅读法。
 
 ## 通用约定
 

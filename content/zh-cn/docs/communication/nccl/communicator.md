@@ -1,10 +1,12 @@
 ---
-title: Communicator 与 Group
-description: ncclComm 结构、channel、rank 模型与 group 并发语义。
+title: Communicator 结构与字段地图
+description: ncclComm 结构、channel、rank 模型与 device 侧镜像；group 并发语义与线程模型见 group-comm 专文。
 weight: 3
 ---
 
-`ncclComm` 是 NCCL 的核心句柄，几乎所有状态挂在它上面。本文基于 `v2.30.4-1` 源码拆解 `ncclComm` 的字段布局、channel 模型、device 侧镜像，以及 group 语义如何驱动并发与批量执行。
+`ncclComm` 是 NCCL 的核心句柄，几乎所有状态挂在它上面。本文基于 `v2.30.4-1` 源码拆解 `ncclComm` 的字段布局、channel 模型、device 侧镜像。group 的提交模型、join/leave 哨兵语义、非阻塞串行约束和**线程模型硬约束**是理解 NCCL 并发的钥匙，单独成文见 [Group 提交模型与 Communicator 线程模型](group-comm)——这里只保留与 `ncclComm` 字段直接相关的部分。
+
+> **硬约束（先记）**：一个 communicator 在任意时刻只能被一个线程驱动。`ncclComm` 不是线程安全的，多线程必须各用各的 comm，不能跨线程共享同一个 comm（尤其不能在有未关闭 group 的情况下交叉使用）。违反它不会报错，而是产生静默的孤儿任务与 data race。原因详见 [group-comm 专文](group-comm#跨线程共享-comm-会怎样)。
 
 ## ncclComm 的字段地图
 
@@ -133,64 +135,18 @@ ncclKernelCommAndChannels (include/device.h:461)
 
 `comm->devComm = &ncclKernelCommAndChannels::comm`（`include/comm.h:~672`）。kernel 启动时第一个 warp 把 `ncclKernelComm` 拷进 shmem，第二个 warp 拷当前 channel 的 `ncclDevChannel`，然后才开始干活（详见 [kernel](kernel)）。
 
-## Group 语义
+## Group 语义（摘要）
 
-group 是 NCCL 的批量执行单元，也是理解其并发模型的钥匙。
+group 是 NCCL 的批量执行单元，把"入队"和"提交"分离：group 内调 collective 只走 `taskAppend → collTaskAppend` 把任务挂进 planner，**调度和 launch 全部推迟到 `ncclGroupEndInternal`**。这带来批量调度（`ncclTasksRegAndEnqueue` 按 `(func,op,datatype)` 分 bin 并 4× 聚合，少 launch）、跨 comm 对齐（`doLaunches` 按 clique 分轮交错 launch）和统一错误回滚三个好处。
 
-### thread-local 状态
+group 状态是 `thread_local` 的（`src/group.cc` 的 `ncclGroupDepth` / `ncclGroupError` / `ncclGroupCommHead[]` / `ncclGroupBlocking`），`ncclGroupStart` 只 `ncclGroupDepth++`，`ncclGroupEnd` 仅在 depth 归零时触发——所以是可嵌套计数器，隐式 group 对显式 group 透明。`ncclGroupTaskType`（`include/comm.h:506`）：`Collective=0`、`SymRegister=1`。
 
-```text
-src/group.cc:27-32
-ncclGroupDepth                  嵌套深度（ncclGroupStart++，End--）
-ncclGroupError                  group 内首个错误
-ncclGroupCommHead[ncclGroupTaskTypeNum]   参与 group 的 comm 链表头
-ncclGroupCommPreconnectHead     预连接链表
-ncclGroupBlocking               -1 未定 / 0 非阻塞 / 1 阻塞
-```
+阻塞 vs 非阻塞由首个参与 comm 的 `config.blocking` 决定，全 group 必须一致：阻塞在当前线程跑 `groupLaunch`；非阻塞给每个参与 comm 设 `ncclInProgress`、起独立 `std::thread` 跑 `groupLaunchNonBlocking`，用户轮询 `ncclCommGetAsyncError`。
 
-`ncclGroupTaskType`（`include/comm.h:506`）：`Collective=0`、`SymRegister=1`。
+group 的提交模型、join/leave 哨兵 `0x1` 的真实语义（**幂等守卫，不是互斥锁**）、非阻塞串行约束、校验三档，以及跨线程共享 comm 的静默错误推演，单独成文见 [Group 提交模型与 Communicator 线程模型](group-comm)。那里有两条最容易被忽视的约束：
 
-### Start / End 的真实行为
-
-```text
-ncclGroupStart → ncclGroupStartInternal   include/group.h:90
-  仅 ncclGroupDepth++，不重置任何状态
-
-ncclGroupEnd → ncclGroupEndInternal       src/group.cc:753
-  仅当 depth 归零时执行（支持嵌套，内层 End 不触发）
-  ncclGroupError != success 则跳过
-```
-
-这说明 group 是**可嵌套的计数器**，只有最外层 End 才真正提交。所以 `ncclEnqueueCheck` 的隐式 Start/End 对显式 group 是透明的。
-
-### 入队与提交的分离
-
-在 group 内调 collective，只走 `taskAppend → collTaskAppend`：任务进 `collSorter`，comm 挂进 `ncclGroupCommHead`。**调度和 launch 全部推迟到 `ncclGroupEndInternal`**。这带来三个好处：
-
-1. **批量调度**：一个 group 的多个 collective 在 `ncclTasksRegAndEnqueue` 里按 `(func,op,datatype)` 分 bin 并 4× 聚合，少 launch。
-2. **跨 comm 对齐**：`doLaunches` 按 clique 分轮交错 launch，让同序号 kernel 在各 rank 时间上重叠。
-3. **统一错误处理**：任一 comm 出错设 `ncclGroupError`，End 时整体回滚（`groupCleanup` group.cc:390）。
-
-### clique 与轮次
-
-`doLaunches`（`group.cc:307`）把共享 `intraComm0` 的 comms 归为一个 clique（通常同进程的多个 comm）。对 clique 内每个 comm：
-
-```text
-ncclLaunchPrepare(comm)        把这一批任务排进 plan
-(group-launch 模式) intraBarrierIn   clique 内对齐
-多轮 launch：before → kernel → after
-(group-launch) intraBarrierOut
-ncclLaunchFinish
-```
-
-`intraBarrierIn/Out`（`group.cc:322/343/363`）只在 `ncclLaunchModeGroup` 下生效，保证 clique 内各 rank 同步推进。非 group 模式靠 `unlaunchedPlansHead` 判断还有没有 plan 要 launch。
-
-### 阻塞 vs 非阻塞
-
-`ncclGroupBlocking` 由首个参与 comm 的 `config.blocking` 决定（`group.cc:61-63`），全 group 必须一致。
-
-- **阻塞**：`groupLaunch` 在当前线程跑，跑完 `ncclGroupEnd` 才返回。
-- **非阻塞**：每个参与 comm 设 `ncclCommSetAsyncError(comm, ncclInProgress)`（`group.cc:817/830`），`groupJob` 跨 comm 引用计数，`groupLaunchNonBlocking` 在独立 `std::thread` 跑（`group.cc:842`）。用户轮询 `ncclCommGetAsyncError`，最终经 `ncclGroupJobComplete`（`group.cc:876`）join。
+> 1. **一个 communicator 任意时刻只能被一个线程驱动**（comm 不是线程安全的，跨线程共享会静默产生孤儿任务与 data race）。
+> 2. **非阻塞模式下，同一 comm 的上一个 group 完成前不能提交下一个**（`ncclCommEnsureReady` 会以 `ncclInvalidArgument` 拒绝）。
 
 ### 与 split/grow 的关系
 
