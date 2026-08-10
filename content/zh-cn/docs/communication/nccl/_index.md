@@ -42,6 +42,7 @@ nccl/
 9. [插件 ABI](plugin-abi)：如何接入第三方 RDMA/SHARP 网络。
 10. [高级特性](features)：GDR / GIN / NVLS / RMA / CE / symmetric memory。
 11. [源码阅读路线](reading-guide)：给想自己读源码的人一条三遍阅读法。
+12. [数据结构剖析](data-structures)：支撑热路径的关键内部数据结构逐个拆解，目前有 `ncclMemoryStack`（LIFO 帧级内存池）、`ncclMemoryPool`（per-type 空闲链表池）、`ncclIntruQueue`（侵入式队列）、`ncclIntruAddressMap`（侵入式指针哈希表）。
 
 ## 通用约定
 

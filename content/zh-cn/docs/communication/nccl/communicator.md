@@ -46,7 +46,9 @@ memPool_ncclTaskColl/P2p/Bcast/Rma/ProxyOp/KernelPlan   各类对象的池
 planner (ncclKernelPlanner)       调度状态：collSorter/collTaskQueue/planQueue...
 ```
 
-`memScoped` 是 group 语义的关键：每个 group push 一个栈帧，这一批的 `ncclTaskColl`/`ncclKernelPlan` 全从该帧分配，group 结束整帧回收，无需逐个 free。
+`memScoped` 是 group 语义的关键：每个 group push 一个栈帧，这一批的 `ncclTaskColl`/`ncclKernelPlan` 全从该帧分配，group 结束整帧回收，无需逐个 free。`ncclMemoryStack` 这套 LIFO 帧级内存池的完整拆解（frame/hunk/unhunk 三层结构、Push/Pop 成片回收、慢路径与复用优化）见 [数据结构剖析：ncclMemoryStack](data-structures/memory-stack)。
+
+那六个 `memPool_*` 是 `ncclMemoryPool`——建在 `memPermanent` 之上的 per-type 空闲链表，让单个任务对象能"用完放回、下次复用"而不必每 group 重新分配。它为什么必须以 `memPermanent` 为后端、Cell 类型擦除怎么工作，见 [数据结构剖析：ncclMemoryPool](data-structures/memory-pool)。
 
 ### 连接与 proxy
 
